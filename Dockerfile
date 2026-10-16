@@ -1,4 +1,4 @@
-FROM node:24.21.0-bookworm@sha256:6dac556d980b7f0e5498d08f08cee0ca67798b4ad6c23964a9214920e67758d0 AS ui
+FROM --platform=$BUILDPLATFORM node:24.21.0-bookworm@sha256:6dac556d980b7f0e5498d08f08cee0ca67798b4ad6c23964a9214920e67758d0 AS ui
 WORKDIR /build
 
 COPY .git ./.git
@@ -13,7 +13,8 @@ RUN make npm-install
 COPY ./ui/ ./ui/
 RUN make build-ui
 
-FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS build
+FROM --platform=$BUILDPLATFORM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS build
+ARG TARGETOS TARGETARCH
 WORKDIR /go/src/github.com/pomerium/pomerium
 
 RUN apt-get update \
@@ -23,7 +24,7 @@ COPY . .
 COPY --from=ui /build/ui/dist ./ui/dist
 
 # build
-RUN make build-go NAME=pomerium
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-go NAME=pomerium
 RUN touch /config.yaml
 
 FROM gcr.io/distroless/base-nossl-debian12:debug@sha256:a3daf2b7eeda76578b93c8d08b9143224865cb9426fbff6fd0a036db4769b8d9

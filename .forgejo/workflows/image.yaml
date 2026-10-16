@@ -1,0 +1,67 @@
+name: Build Pomerium image
+
+# Cornerstone's build of Pomerium: the release tag plus the static
+# upstream_oauth2 resource fix (branch v0.33.4-cornerstone). A tag
+# v<upstream>-cornerstone.<n> publishes
+# git.cei-engineering.com/cornerstoneengineering/pomerium:<tag>, which gitops
+# infrastructure/pomerium pins by digest. Pushes to the branch build without
+# publishing.
+
+on:
+  push:
+    branches:
+      - 'v*-cornerstone'
+    tags:
+      - 'v*-cornerstone.*'
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: git.cei-engineering.com
+  ORG_NAME: cornerstoneengineering
+  IMAGE_NAME: pomerium
+
+concurrency:
+  group: pomerium-image-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: Build & publish Pomerium image
+    runs-on: self-hosted
+    container:
+      image: git.cei-engineering.com/actions/node-docker:24
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.NPM_TOKEN }}
+    env:
+      DOCKER_HOST: tcp://172.17.0.1:2375
+    steps:
+      # The Dockerfile copies .git for the version stamp, which needs the tags.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Both stages run on the runner's own architecture and the Go stage
+      # cross-compiles, so the arm64 leg costs no emulation.
+      - name: Build and push
+        uses: actions/docker-buildx@v1
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.ORG_NAME }}/${{ env.IMAGE_NAME }}
+          default-branch: v0.33.4-cornerstone
+          version-tags: exact
+          push: ${{ startsWith(github.ref, 'refs/tags/') && 'true' || 'false' }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.NPM_TOKEN }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.ORG_NAME }}/${{ env.IMAGE_NAME }}:cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.ORG_NAME }}/${{ env.IMAGE_NAME }}:cache,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
