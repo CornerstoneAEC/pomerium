@@ -81,14 +81,11 @@ func (srv *Handler) ClientOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	if pending.ClientSecret != "" {
 		data.Set("client_secret", pending.ClientSecret)
 	}
-	// Use ResourceParam for the RFC 8707 resource indicator in the token exchange.
-	// ResourceParam is the canonical resource identifier from PRM or derived from the upstream origin.
-	// Falls back to UpstreamServer for backwards compatibility with pending auth states
-	// created before ResourceParam was added.
+	// ResourceParam is the RFC 8707 resource indicator the authorization request
+	// was made with: the canonical resource from PRM, the upstream origin from
+	// fallback discovery, or the configured value (possibly none) for static
+	// endpoints. The token exchange must send exactly the same value.
 	resourceParam := pending.GetResourceParam()
-	if resourceParam == "" {
-		resourceParam = pending.UpstreamServer
-	}
 	if resourceParam != "" {
 		data.Set("resource", resourceParam)
 	}

@@ -460,13 +460,6 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 			return "", fmt.Errorf("failed to update pending upstream auth with auth_req_id: %w", putErr)
 		}
 
-		// Use ResourceParam (canonical resource from discovery) for the RFC 8707 resource
-		// indicator. Falls back to stripQueryFromURL(OriginalUrl) for pending auth states
-		// created before ResourceParam was added.
-		resource := pending.GetResourceParam()
-		if resource == "" {
-			resource = stripQueryFromURL(pending.OriginalUrl)
-		}
 		var extraParams map[string]string
 		if oa := params.Info.UpstreamOAuth2; oa != nil {
 			extraParams = oa.AuthorizationURLParams
@@ -478,7 +471,7 @@ func (srv *Handler) resolveAutoDiscoveryAuth(ctx context.Context, params *autoDi
 			State:               pending.StateId,
 			CodeChallenge:       pending.PkceChallenge,
 			CodeChallengeMethod: "S256",
-			Resource:            resource,
+			Resource:            pending.GetResourceParam(),
 			ExtraParams:         extraParams,
 		})
 		if err != nil {

@@ -550,6 +550,9 @@ message UpstreamOAuth2 {
   repeated string scopes = 4;
   // Additional parameters to add to authorization requests.
   map<string, string> authorization_url_params = 5;
+  // RFC 8707 resource indicator sent in authorization and token requests when
+  // the endpoints are configured statically. Omitted from requests when empty.
+  string resource = 6;
 }
 
 // Configuration for an OAuth2 server endpoint.

@@ -328,7 +328,7 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 				"not UpstreamServer (full path URL)")
 	})
 
-	t.Run("backwards-compat: falls back to UpstreamServer when ResourceParam is empty", func(t *testing.T) {
+	t.Run("no resource param is sent when the token was acquired without one", func(t *testing.T) {
 		t.Parallel()
 
 		var capturedFormValues url.Values
@@ -356,12 +356,12 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 			httpClient: tokenSrv.Client(),
 		}
 
-		// Token stored before ResourceParam was added — has no ResourceParam field.
+		// Static endpoints without a configured resource acquire the token without one.
 		token := &oauth21proto.UpstreamMCPToken{
 			UserId:         "user-1",
 			RouteId:        "route-1",
 			UpstreamServer: "https://api.example.com/mcp",
-			ResourceParam:  "", // empty — pre-upgrade token
+			ResourceParam:  "",
 			RefreshToken:   "old-refresh-token",
 			ClientId:       "https://proxy.example.com/.pomerium/mcp/client/metadata.json",
 			TokenEndpoint:  tokenSrv.URL,
@@ -371,9 +371,8 @@ func TestRefreshToken_ResourceParam(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "new-access-token", refreshed.AccessToken)
 
-		// Should fall back to UpstreamServer
-		assert.Equal(t, "https://api.example.com/mcp", capturedFormValues.Get("resource"),
-			"when ResourceParam is empty, should fall back to UpstreamServer for backwards compat")
+		assert.False(t, capturedFormValues.Has("resource"),
+			"a token acquired without a resource indicator must be refreshed without one")
 	})
 
 	t.Run("omits resource parameter when both ResourceParam and UpstreamServer are empty", func(t *testing.T) {
@@ -691,20 +690,15 @@ func TestReusePendingAuth_ResourceParamConsistency(t *testing.T) {
 		PkceChallenge:         "test-challenge",
 	}
 
-	// The production code in resolveAutoDiscoveryAuth must use ResourceParam (canonical
-	// resource from discovery) when available, falling back to stripQueryFromURL(OriginalUrl)
-	// for backwards compat. Verify the fixed logic produces a consistent resource parameter.
-	resource := pending.GetResourceParam()
-	if resource == "" {
-		resource = stripQueryFromURL(pending.OriginalUrl)
-	}
+	// resolveAutoDiscoveryAuth and ClientOAuthCallback both take the resource
+	// indicator from ResourceParam; the two requests must carry the same value.
 	authURL, err := buildAuthorizationURL(pending.AuthorizationEndpoint, &authorizationURLParams{
 		ClientID:            pending.ClientId,
 		RedirectURI:         pending.RedirectUri,
 		State:               pending.StateId,
 		CodeChallenge:       pending.PkceChallenge,
 		CodeChallengeMethod: "S256",
-		Resource:            resource,
+		Resource:            pending.GetResourceParam(),
 	})
 	require.NoError(t, err)
 
@@ -713,18 +707,14 @@ func TestReusePendingAuth_ResourceParamConsistency(t *testing.T) {
 	require.NoError(t, err)
 	authResourceParam := parsedAuthURL.Query().Get("resource")
 
-	// Simulate what ClientOAuthCallback does for the token exchange
 	tokenExchangeResource := pending.GetResourceParam()
-	if tokenExchangeResource == "" {
-		tokenExchangeResource = pending.UpstreamServer
-	}
 
 	// RFC 8707 §2: The resource parameter in the authorization request MUST match
 	// the resource parameter in the token exchange request. If the AS enforces this
 	// (as it SHOULD), mismatched values will cause the token exchange to fail.
 	assert.Equal(t, tokenExchangeResource, authResourceParam,
 		"resource parameter mismatch between authorization request and token exchange: "+
-			"authorization URL uses stripQueryFromURL(OriginalUrl)=%q but token exchange uses ResourceParam=%q; "+
+			"authorization URL uses %q but token exchange uses ResourceParam=%q; "+
 			"per RFC 8707 §2, these MUST be identical for the AS to accept the token exchange",
 		authResourceParam, tokenExchangeResource)
 }

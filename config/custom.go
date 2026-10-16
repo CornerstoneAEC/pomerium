@@ -739,6 +739,7 @@ func mcpServerFromPB(src *configpb.MCPServer) *MCPServer {
 			Endpoint:               OAuth2EndpointFromPB(uo.Oauth2Endpoint),
 			Scopes:                 uo.GetScopes(),
 			AuthorizationURLParams: uo.GetAuthorizationUrlParams(),
+			Resource:               uo.GetResource(),
 		}
 	}
 	return &v
@@ -762,6 +763,7 @@ func mcpServerToPB(src *MCPServer) *configpb.MCPServer {
 			Oauth2Endpoint:         OAuth2EndpointToPB(src.UpstreamOAuth2.Endpoint),
 			Scopes:                 src.UpstreamOAuth2.Scopes,
 			AuthorizationUrlParams: src.UpstreamOAuth2.AuthorizationURLParams,
+			Resource:               src.UpstreamOAuth2.Resource,
 		}
 	}
 

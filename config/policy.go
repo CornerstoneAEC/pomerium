@@ -278,6 +278,10 @@ type UpstreamOAuth2 struct {
 	Endpoint               OAuth2Endpoint    `mapstructure:"endpoint" yaml:"endpoint,omitempty" json:"endpoint"`
 	Scopes                 []string          `mapstructure:"scopes" yaml:"scopes,omitempty" json:"scopes,omitempty"`
 	AuthorizationURLParams map[string]string `mapstructure:"authorization_url_params" yaml:"authorization_url_params,omitempty" json:"authorization_url_params,omitempty"`
+	// Resource is the RFC 8707 resource indicator sent in authorization and
+	// token requests when the endpoints are configured statically. When empty,
+	// no resource parameter is sent.
+	Resource string `mapstructure:"resource" yaml:"resource,omitempty" json:"resource,omitempty"`
 }
 
 type OAuth2Endpoint struct {

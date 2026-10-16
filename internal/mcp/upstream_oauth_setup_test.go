@@ -192,27 +192,6 @@ func TestStripPort(t *testing.T) {
 	}
 }
 
-func TestStripQueryFromURL(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"https://api.example.com/mcp", "https://api.example.com/mcp"},
-		{"https://api.example.com/mcp?foo=bar", "https://api.example.com/mcp"},
-		{"https://api.example.com/mcp?foo=bar&baz=qux", "https://api.example.com/mcp"},
-		{"https://api.example.com", "https://api.example.com"},
-		{"https://api.example.com/", "https://api.example.com/"},
-		{"https://api.example.com/mcp#fragment", "https://api.example.com/mcp"},
-		{"", ""},
-	}
-
-	for _, tt := range tests {
-		assert.Equal(t, tt.expected, stripQueryFromURL(tt.input), "input: %q", tt.input)
-	}
-}
-
 func TestNormalizeResourceURL(t *testing.T) {
 	t.Parallel()
 
@@ -727,11 +706,29 @@ func TestRunUpstreamOAuthSetup(t *testing.T) {
 		require.NotNil(t, result)
 		assert.Equal(t, "https://auth.example.com/authorize", result.Discovery.AuthorizationEndpoint)
 		assert.Equal(t, "https://auth.example.com/token", result.Discovery.TokenEndpoint)
-		assert.Equal(t, srv.URL, result.Discovery.Resource)
+		assert.Empty(t, result.Discovery.Resource)
 		assert.Equal(t, "my-client-id", result.ClientID)
 		assert.Equal(t, "my-client-secret", result.ClientSecret)
 		assert.Equal(t, []string{"openid", "offline_access"}, result.Scopes)
 		assert.Contains(t, result.RedirectURI, "proxy.example.com")
+	})
+
+	t.Run("static endpoints use the configured resource", func(t *testing.T) {
+		t.Parallel()
+
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer srv.Close()
+
+		result, err := runUpstreamOAuthSetup(context.Background(), srv.Client(), srv.URL+"/mcp", "proxy.example.com",
+			WithStaticEndpoints("https://auth.example.com/authorize", "https://auth.example.com/token"),
+			WithStaticResource("api://11111111-2222-3333-4444-555555555555"),
+			WithPreRegisteredCredentials("my-client-id", "my-client-secret"),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "api://11111111-2222-3333-4444-555555555555", result.Discovery.Resource)
 	})
 
 	t.Run("pre-registered credentials with discovery", func(t *testing.T) {

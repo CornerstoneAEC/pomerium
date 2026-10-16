@@ -516,12 +516,9 @@ func doRefreshUpstreamMCPToken(
 	token *oauth21proto.UpstreamMCPToken,
 	configClientSecret string,
 ) (*oauth21proto.UpstreamMCPToken, error) {
-	// Use ResourceParam for the RFC 8707 resource indicator.
-	// Falls back to UpstreamServer for tokens stored before ResourceParam was added.
+	// The refresh must keep the resource binding the token was acquired with,
+	// including no resource at all for static endpoints without one configured.
 	resourceParam := token.GetResourceParam()
-	if resourceParam == "" {
-		resourceParam = token.UpstreamServer
-	}
 	data := url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {token.RefreshToken},

@@ -96,11 +96,12 @@ levels. All three store tokens as `UpstreamMCPToken`.
 |---|---|---|
 | **Auto-discovery** | No `upstream_oauth2` in policy | Full PRM (RFC 9728) → AS metadata → CIMD/DCR flow. Standard MCP approach. |
 | **Pre-registered credentials** | `upstream_oauth2` with `client_id`/`client_secret` | PRM + AS metadata discovery still runs, but CIMD/DCR is skipped — the admin-provided credentials are used directly. For providers like Google/GitHub where an OAuth app is registered out-of-band. |
-| **Fully static** | `upstream_oauth2` with `client_id`/`client_secret` + `endpoint.auth_url`/`token_url` | Bypasses all discovery (no PRM, no AS metadata fetch). Endpoints and credentials are taken directly from config. |
+| **Fully static** | `upstream_oauth2` with `client_id`/`client_secret` + `endpoint.auth_url`/`token_url` | Bypasses all discovery (no PRM, no AS metadata fetch). Endpoints and credentials are taken directly from config. The RFC 8707 `resource` parameter is sent only when `upstream_oauth2.resource` is set; there is no metadata to derive it from, and providers such as Entra ID reject a guessed value. |
 
 The `upstreamOAuthSetupOptsFromConfig` function translates the `upstream_oauth2`
-config into setup options (`WithStaticEndpoints`, `WithPreRegisteredCredentials`,
-`WithStaticScopes`) that progressively disable parts of the discovery pipeline.
+config into setup options (`WithStaticEndpoints`, `WithStaticResource`,
+`WithPreRegisteredCredentials`, `WithStaticScopes`) that progressively disable
+parts of the discovery pipeline.
 
 ---
 
