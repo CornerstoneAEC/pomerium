@@ -27,6 +27,8 @@ type upstreamOAuthSetupConfig struct {
 	// Static endpoint overrides — skip discovery entirely when both are set.
 	staticAuthorizationEndpoint string
 	staticTokenEndpoint         string
+	// RFC 8707 resource indicator for static endpoints. Empty means none is sent.
+	staticResource string
 
 	// Pre-registered client credentials — skip CIMD/DCR when clientID is set.
 	preRegisteredClientID     string
@@ -80,6 +82,17 @@ func WithStaticEndpoints(authorizationEndpoint, tokenEndpoint string) UpstreamOA
 	}
 }
 
+// WithStaticResource sets the RFC 8707 resource indicator used with static
+// endpoints. Without it no resource parameter is sent: with static endpoints
+// there is no protected resource metadata to take the value from, and a value
+// guessed from the upstream URL is rejected by authorization servers that
+// validate it (Microsoft Entra ID returns AADSTS9010010 for an unknown resource).
+func WithStaticResource(resource string) UpstreamOAuthSetupOption {
+	return func(c *upstreamOAuthSetupConfig) {
+		c.staticResource = resource
+	}
+}
+
 // WithPreRegisteredCredentials provides pre-registered client_id and client_secret,
 // bypassing CIMD and DCR. Used when the admin has registered a client with the
 // upstream AS out-of-band (e.g. Google OAuth).
@@ -109,6 +122,9 @@ func upstreamOAuthSetupOptsFromConfig(oa *config.UpstreamOAuth2) []UpstreamOAuth
 	var opts []UpstreamOAuthSetupOption
 	if oa.Endpoint.AuthURL != "" && oa.Endpoint.TokenURL != "" {
 		opts = append(opts, WithStaticEndpoints(oa.Endpoint.AuthURL, oa.Endpoint.TokenURL))
+	}
+	if oa.Resource != "" {
+		opts = append(opts, WithStaticResource(oa.Resource))
 	}
 	if oa.ClientID != "" {
 		opts = append(opts, WithPreRegisteredCredentials(oa.ClientID, oa.ClientSecret))
@@ -146,21 +162,18 @@ func runUpstreamOAuthSetup(
 	// Determine discovery result: static endpoints bypass discovery entirely.
 	var discovery *discoveryResult
 	if cfg.staticAuthorizationEndpoint != "" && cfg.staticTokenEndpoint != "" {
-		// Fully static or pre-registered: endpoints are provided by the admin.
-		// Derive the resource identifier from the upstream URL origin.
-		resource, err := originOf(resourceURL)
-		if err != nil {
-			return nil, fmt.Errorf("deriving resource from upstream URL %q: %w", resourceURL, err)
-		}
+		// Fully static: endpoints are provided by the admin and there is no
+		// protected resource metadata, so the resource indicator is only what
+		// the admin configured (see WithStaticResource).
 		discovery = &discoveryResult{
 			AuthorizationEndpoint: cfg.staticAuthorizationEndpoint,
 			TokenEndpoint:         cfg.staticTokenEndpoint,
-			Resource:              resource,
+			Resource:              cfg.staticResource,
 		}
 		log.Ctx(ctx).Info().
 			Str("authorization_endpoint", cfg.staticAuthorizationEndpoint).
 			Str("token_endpoint", cfg.staticTokenEndpoint).
-			Str("resource", resource).
+			Str("resource", cfg.staticResource).
 			Msg("ext_proc: using static upstream OAuth2 endpoints (skipping discovery)")
 	} else {
 		var err error
@@ -599,18 +612,6 @@ func stripPort(host string) string {
 		return h
 	}
 	return host
-}
-
-// stripQueryFromURL returns the URL with query string and fragment removed.
-// Used to derive the resource URL from the full request URL.
-func stripQueryFromURL(rawURL string) string {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return rawURL
-	}
-	u.RawQuery = ""
-	u.Fragment = ""
-	return u.String()
 }
 
 func effectiveUpstreamResourceURL(configuredUpstream, originalURL string) (string, error) {

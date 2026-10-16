@@ -2762,6 +2762,8 @@ func (m *UpstreamOAuth2) validate(all bool) error {
 
 	// no validation rules for AuthorizationUrlParams
 
+	// no validation rules for Resource
+
 	if len(errors) > 0 {
 		return UpstreamOAuth2MultiError(errors)
 	}

@@ -2713,8 +2713,11 @@ type UpstreamOAuth2 struct {
 	Scopes []string `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	// Additional parameters to add to authorization requests.
 	AuthorizationUrlParams map[string]string `protobuf:"bytes,5,rep,name=authorization_url_params,json=authorizationUrlParams,proto3" json:"authorization_url_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// RFC 8707 resource indicator sent in authorization and token requests when
+	// the endpoints are configured statically. Omitted from requests when empty.
+	Resource      string `protobuf:"bytes,6,opt,name=resource,proto3" json:"resource,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpstreamOAuth2) Reset() {
@@ -2780,6 +2783,13 @@ func (x *UpstreamOAuth2) GetAuthorizationUrlParams() map[string]string {
 		return x.AuthorizationUrlParams
 	}
 	return nil
+}
+
+func (x *UpstreamOAuth2) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
 }
 
 // Configuration for an OAuth2 server endpoint.
@@ -9840,13 +9850,14 @@ const file_config_proto_rawDesc = "" +
 	"\x12_max_request_bytesB\a\n" +
 	"\x05_pathB\x1b\n" +
 	"\x19_authorization_server_url\"\v\n" +
-	"\tMCPClient\"\xfc\x02\n" +
+	"\tMCPClient\"\x98\x03\n" +
 	"\x0eUpstreamOAuth2\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12)\n" +
 	"\rclient_secret\x18\x02 \x01(\tB\x04\xe8\xd6,\x01R\fclientSecret\x12H\n" +
 	"\x0foauth2_endpoint\x18\x03 \x01(\v2\x1f.pomerium.config.OAuth2EndpointR\x0eoauth2Endpoint\x12\x16\n" +
 	"\x06scopes\x18\x04 \x03(\tR\x06scopes\x12u\n" +
-	"\x18authorization_url_params\x18\x05 \x03(\v2;.pomerium.config.UpstreamOAuth2.AuthorizationUrlParamsEntryR\x16authorizationUrlParams\x1aI\n" +
+	"\x18authorization_url_params\x18\x05 \x03(\v2;.pomerium.config.UpstreamOAuth2.AuthorizationUrlParamsEntryR\x16authorizationUrlParams\x12\x1a\n" +
+	"\bresource\x18\x06 \x01(\tR\bresource\x1aI\n" +
 	"\x1bAuthorizationUrlParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9d\x01\n" +

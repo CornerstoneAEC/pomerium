@@ -257,14 +257,14 @@ func TestClientOAuthCallback(t *testing.T) {
 		assert.False(t, (*capturedForm).Has("client_secret"))
 	})
 
-	t.Run("resource param falls back to upstream_server", func(t *testing.T) {
+	t.Run("no resource param is sent when the pending auth has none", func(t *testing.T) {
 		storage := setupTestDatabroker(ctx, t)
 
 		tokenServer, capturedForm := newTokenServer(t, successfulTokenResponse)
 
 		pending := newTestPendingAuth(tokenServer.URL)
-		pending.ResourceParam = "" // empty, should fall back
-		pending.UpstreamServer = "https://fallback.example.com"
+		pending.ResourceParam = ""
+		pending.UpstreamServer = "https://upstream.example.com"
 		require.NoError(t, storage.PutPendingUpstreamAuth(ctx, pending))
 
 		srv := &Handler{
@@ -277,7 +277,7 @@ func TestClientOAuthCallback(t *testing.T) {
 		srv.ClientOAuthCallback(w, r)
 
 		require.Equal(t, http.StatusFound, w.Code)
-		assert.Equal(t, "https://fallback.example.com", (*capturedForm).Get("resource"))
+		assert.False(t, (*capturedForm).Has("resource"))
 	})
 
 	t.Run("reactive flow stores token and redirects to original URL", func(t *testing.T) {

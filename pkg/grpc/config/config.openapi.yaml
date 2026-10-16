@@ -5799,6 +5799,12 @@ components:
             type: string
             title: value
           description: Additional parameters to add to authorization requests.
+        resource:
+          type: string
+          title: resource
+          description: |-
+            RFC 8707 resource indicator sent in authorization and token requests when
+             the endpoints are configured statically. Omitted from requests when empty.
       title: UpstreamOAuth2
       additionalProperties: false
       description: |-
